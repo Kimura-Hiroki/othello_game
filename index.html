@@ -1,0 +1,170 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>オセロゲーム</title>
+    <style>
+        body {
+            text-align: center;
+            background-color: #2e8b57;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            background: #222;
+            display: block;
+            margin: 20px auto;
+            border: 2px solid #fff;
+        }
+        button {
+            margin: 10px;
+            padding: 10px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <h1>オセロゲーム</h1>
+    <canvas id="board" width="400" height="400"></canvas>
+    <p id="turn">黒のターン</p>
+    <button onclick="setMode('twoPlayers')">2人対戦</button>
+    <button onclick="setMode('ai')">AI対戦</button>
+    <button onclick="skipTurn()">スキップ</button>
+    <button onclick="resetGame()">リセット</button>
+    <p id="winner"></p>
+    <script>
+        const canvas = document.getElementById("board");
+        const ctx = canvas.getContext("2d");
+        const size = 8;
+        const cellSize = canvas.width / size;
+        let board;
+        let currentPlayer;
+        let gameMode = "twoPlayers";
+        let passCount;
+
+        function resetGame() {
+            board = Array(size).fill(null).map(() => Array(size).fill(null));
+            board[3][3] = "white";
+            board[3][4] = "black";
+            board[4][3] = "black";
+            board[4][4] = "white";
+            currentPlayer = "black";
+            passCount = 0;
+            document.getElementById("turn").innerText = "黒のターン";
+            document.getElementById("winner").innerText = "";
+            drawBoard();
+        }
+
+        function setMode(mode) {
+            gameMode = mode;
+            resetGame();
+        }
+
+        function checkWinner() {
+            let blackCount = 0, whiteCount = 0;
+            board.forEach(row => row.forEach(cell => {
+                if (cell === "black") blackCount++;
+                if (cell === "white") whiteCount++;
+            }));
+            if (!board.flat().includes(null)) {
+                let winnerText = blackCount > whiteCount ? "黒の勝ち！" : whiteCount > blackCount ? "白の勝ち！" : "引き分け！";
+                document.getElementById("winner").innerText = winnerText;
+            }
+        }
+
+        function drawBoard() {
+            ctx.fillStyle = "green";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            for (let i = 0; i <= size; i++) {
+                ctx.strokeStyle = "black";
+                ctx.beginPath();
+                ctx.moveTo(i * cellSize, 0);
+                ctx.lineTo(i * cellSize, canvas.height);
+                ctx.moveTo(0, i * cellSize);
+                ctx.lineTo(canvas.width, i * cellSize);
+                ctx.stroke();
+            }
+            board.forEach((row, y) => {
+                row.forEach((cell, x) => {
+                    if (cell) {
+                        ctx.beginPath();
+                        ctx.arc(
+                            x * cellSize + cellSize / 2,
+                            y * cellSize + cellSize / 2,
+                            cellSize / 2.5,
+                            0,
+                            Math.PI * 2
+                        );
+                        ctx.fillStyle = cell;
+                        ctx.fill();
+                    }
+                });
+            });
+        }
+
+        function flipPieces(x, y) {
+            const directions = [
+                [-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]
+            ];
+            let flipped = false;
+
+            directions.forEach(([dx, dy]) => {
+                let i = x + dx;
+                let j = y + dy;
+                let toFlip = [];
+                while (i >= 0 && i < size && j >= 0 && j < size && board[j][i] && board[j][i] !== currentPlayer) {
+                    toFlip.push([i, j]);
+                    i += dx;
+                    j += dy;
+                }
+                if (i >= 0 && i < size && j >= 0 && j < size && board[j][i] === currentPlayer && toFlip.length > 0) {
+                    toFlip.forEach(([fx, fy]) => {
+                        board[fy][fx] = currentPlayer;
+                    });
+                    flipped = true;
+                }
+            });
+            return flipped;
+        }
+
+        function placePiece(x, y) {
+            if (board[y][x] !== null || !flipPieces(x, y)) return;
+            board[y][x] = currentPlayer;
+            currentPlayer = currentPlayer === "black" ? "white" : "black";
+            passCount = 0;
+            document.getElementById("turn").innerText = currentPlayer === "black" ? "黒のターン" : "白のターン";
+            drawBoard();
+            checkWinner();
+            if (gameMode === "ai" && currentPlayer === "white") {
+                setTimeout(aiMove, 500);
+            }
+        }
+
+        function aiMove() {
+            for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size; x++) {
+                    if (board[y][x] === null && flipPieces(x, y)) {
+                        board[y][x] = "white";
+                        currentPlayer = "black";
+                        document.getElementById("turn").innerText = "黒のターン";
+                        drawBoard();
+                        checkWinner();
+                        return;
+                    }
+                }
+            }
+            skipTurn();
+        }
+
+        canvas.addEventListener("click", (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.floor((e.clientX - rect.left) / cellSize);
+            const y = Math.floor((e.clientY - rect.top) / cellSize);
+            placePiece(x, y);
+        });
+
+        resetGame();
+    </script>
+</body>
+</html>
